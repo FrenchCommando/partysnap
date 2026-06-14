@@ -1,0 +1,13 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Env / secrets
+.env
+
+# Local media blobs
+media/
+backend/media/
+
+# nginx conf rendered from the template by scripts/init-env.sh
+deploy/nginx/partysnap.conf

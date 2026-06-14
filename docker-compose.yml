@@ -1,0 +1,38 @@
+# PartySnap stack. See DEPLOYMENT.md.
+# On the Pi (32-bit userland, 64-bit kernel) add `platform: linux/arm64` to each
+# service via a compose override; left unpinned here so local dev builds native.
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # No host port: the app reaches Postgres over the compose network (db:5432).
+    # Need a psql shell? `docker compose exec db psql -U $POSTGRES_USER $POSTGRES_DB`.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    build: ./backend
+    env_file: .env          # forwards every .env var (APP_SECRET, ADMIN_*, GOOGLE_*, …)
+    environment:
+      # Built from the POSTGRES_* in .env (not a raw .env var), so set explicitly.
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - media:/app/media
+    ports:
+      - "127.0.0.1:${APP_PORT}:8000"   # host APP_PORT -> fixed internal 8000; nginx proxies to APP_PORT (DEPLOYMENT §6)
+
+volumes:
+  pgdata:
+  media:
